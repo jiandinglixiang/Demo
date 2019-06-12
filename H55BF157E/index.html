@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<title>1</title>
+		<link rel="stylesheet" type="text/css" href="./css/mui.min.css" />
+		<style>
+			.mui-content {
+				max-width: 100%;
+			}
+			
+			img {
+				width: 100%;
+				line-height: 0px;
+			}
+			
+			body {
+				line-height: 0px;
+			}
+		</style>
+		<script src="./js/mui.js"></script>
+		<script type="text/javascript">
+			mui.init();
+		</script>
+	</head>
+
+	<body>
+		<div class="mui-content">
+			<div class="mui-slider" style="display: none;">
+				<div class="mui-slider-group">
+					<!--第一个内容区容器-->
+					<div class="mui-slider-item">
+						<img class="imgs" src="img/1_720x1280.png" />
+					</div>
+					<!--第二个内容区-->
+					<div class="mui-slider-item">
+						<img class="imgs" src="img/2_720x1280.png" />
+					</div>
+					<div class="mui-slider-item" id='goxqt'>
+						<img class="imgs" src="img/3_720x1280.png" />
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+	<script type="text/javascript">
+		mui.plusReady(function() {
+			var zipOl = 0,
+				path = "_doc/html/",
+				appid = "H55BF157E";
+			var H55BF157E;
+			var heights = document.documentElement.clientHeight;
+			plus.screen.lockOrientation("portrait-primary"); //只能竖屏不能横屏幕
+			var html = plus.storage.getItem('FirstTimeA');
+
+//			openhtml('./build/index.html', 'xqt', aversions());
+//			return false;
+
+			if(html) { //当没有这个标识说明是第一次启动
+				openhtml(html, 'xqt', aversions());
+			} else {
+
+				H55BF157E = 'http://yqxxkj-file.oss-cn-shanghai.aliyuncs.com/file/%E6%B5%8B%E8%AF%95%E7%9B%AE%E5%BD%95/H55BF157E.zip'
+
+				H55BF157E = 'http://yqxxkj-file.oss-cn-shanghai.aliyuncs.com/file/hotUpdate/H55BF157E.zip'
+
+				downloadIMG(H55BF157E, function(val) {
+					if(val) {
+						plus.zip.decompress(val, path, function(successCB) {
+							plus.nativeUI.closeWaiting();
+							mui.toast("数据加载完毕,您可以操作了")
+							console.log("成功")
+							zipOl = 2
+						}, function(errorCB) {
+							plus.nativeUI.closeWaiting();
+							zipOl = 1
+							console.log("失败")
+						});
+					} else {
+						zipOl = 1
+						mui.alert("App内容加载失败,请检查网络是否正常", "提示", "刷新页面", function() {
+							plus.webview.currentWebview().reload(true)
+						})
+					}
+				});
+				document.querySelector('.mui-slider').style.display = 'block'; //显示
+
+				plus.geolocation.getCurrentPosition(function() {}, function() {}, {
+					provider: 'system'
+				}) //申请定位权限
+
+				Array.prototype.slice.call(document.querySelectorAll('.imgs')).forEach(function(item, index) {
+					item.style.height = heights + 'px'; //遍历滚动元素设置高度
+				});
+
+				document.getElementById('goxqt').addEventListener('tap', function() {
+					switch(zipOl) {
+						case 0:
+							plus.nativeUI.showWaiting("正在加载数据...", {
+								width: "50%"
+							});
+							break;
+						case 1:
+							mui.alert("App内容加载失败,请检查网络是否正常", "提示", "刷新页面", function() {
+								plus.webview.currentWebview().reload(true)
+							})
+							break;
+						case 2:
+							plus.storage.setItem('FirstTimeA', path + appid + '/www/build/index.html');
+							openhtml(path + appid + '/www/build/index.html', 'xqt', aversions());
+							break;
+					}
+				});
+			}
+		});
+
+		function downloadIMG(urls, cbk) {
+			var ims = plus.downloader.createDownload(urls, {
+				timeout: 10,
+				retry: 1,
+				retryInterval: 1,
+				filename: "_doc/html/"
+			}, function(down, star) {
+				if(star == 200) {
+					if(down.downloadedSize) {
+						console.log(JSON.stringify(down))
+						cbk(down.filename)
+					} else {
+						cbk(false)
+						console.log(down.downloadedSize)
+						console.log("下载数据为零")
+					}
+				} else {
+					cbk(false)
+					console.log(JSON.stringify(down))
+					console.log(star)
+					console.log("超时")
+				}
+			})
+			ims.start()
+		}
+
+		function openhtml(url, id, bool) {
+			mui.openWindow({
+				url: url,
+				id: id,
+				show: {
+					autoShow: true, //页面loaded事件发生后自动显示，默认为true
+					aniShow: 'zoom-out', //页面显示动画，默认为”slide-in-right“；
+					event: 'titleUpdate', //页面显示时机，默认为titleUpdate事件时显示
+				},
+				styles: {
+					hardwareAccelerated: bool
+				}
+			})
+		};
+
+		//		mui.preload({
+		//			url: './build/index.html',
+		//			id: 'axt', //默认使用当前页面的url作为id
+		//			styles: {
+		//				hardwareAccelerated: aversions()
+		//			}
+		//		});
+		//
+		function aversions() {
+			if(mui.os.android && parseFloat(mui.os.version) < 5) {
+				return false;
+			}
+			return true;
+		}
+	</script>
+
+</html>

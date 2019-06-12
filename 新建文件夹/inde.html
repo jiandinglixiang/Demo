@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<img id="img" src="" alt="">
+<script>
+  function dataURLtoFile (dataurl, filename) {//将base64转换为文件
+    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n)
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n)
+    }
+    return new File([u8arr], filename, { type: mime })
+  }
+
+  function getImgToBase64 (url, callback) {//将图片转换为Base64
+    var canvas = document.createElement('canvas'),
+      ctx = canvas.getContext('2d'),
+      img = new Image
+    img.crossOrigin = 'Anonymous'
+    img.onload = function () {
+      canvas.height = img.height
+      canvas.width = img.width
+      ctx.drawImage(img, 0, 0)
+      var dataURL = canvas.toDataURL('image/png')
+      callback(dataURL)
+      canvas = null
+    }
+    img.src = url
+  }
+
+  var myFile = dataURLtoFile(`data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAADB0lEQVRYR+3Xz0tUURTA8e95r8mBSKQsXIhpUBC0s/wximFGtW2bf0CUi4pW7dy1imoxRn9AbttKZBLYjEbSpkUUqIlQpIUY4UzTeyfe+PONb5of745j4N3NMO/czz3cd+Yc4T9bYtqrE+2NuNZANq7lxqVjct7kHkbBOtZaT7RmAFdvrIJliFQ6Lr1Ti6bQxsAbWMXDHlkDLiAYRRsBb2aWAYR6XzaVRSzipjIdGpwHux5Xs3iD6FDgAtj1RBtFlw0uEmscXRa4RKxRdMngMrHG0CWBQ2KNoIsGG8KGRhcFNowNhS4IrhC2bPQ/wRXGloXOC94hrB8NiwhxMitD0vNuIahhCgTvMHY7WhnCWYkHobeBq4QtGu0DVxlbFHoDrGNnG4hGruH6WsSCVcRUY54TZ7Vh8u509nqkn0jP1Bfvi01wovMBKv1b+tlqYQMyrcPSlbyVA44tAwcrlLGwYX9KLFGbm+GPqEQRGoBI2B0MPZ9B+YpoSmLJk37w69gxLLcRtYaBJkMbhg0zh7hXca156Up89oG9Dzre2oTUjCEcD7uTkeeVaTTdK91Tc+vx/GXtVVsLEXsUpMXIhqGD6AwZp0/OvZnZA4dOZmCAimVYXVSWEV3KDvX+JajUIVoLYpV2sEqBlSUs7iHOM9L6x4eqkX2ofQWXuwh1uwMMs1jORemY/BQE0on2E7j2c6B5t4CnUc6v18pclHo1XngJpZbLSl0Jtgfeitayy+UeeKOx2lbg9zK8lgFDf817d3gtnxV76ZhG3D7pnJgNrMPJjmbUGjVf1rz20to/AnKq5AJvO33SvtlV+V66ybYWnHK6QP2Aa1+S7vE87WWi8xAq9xH6S5w6voHexnaSpHKOGgUcuwPkIXC0hER408ZTRO9ILPkjuL0cxOJyewzXegScBtlf5AYO8B3RX8FNlxxAOYxgFxdPfwPvsdybjEwmZBA3EJydOt62RkhFLmDJdVS6EbwcFbHUBskzaauCeIcqvJQUouO4+pho5oWcmcpsfajao3zhA+T84i9/EytLfh0howAAAABJRU5ErkJggg==`, 'testimgtestimgtestimg')
+  document.querySelector('#img').setAttribute('src', (window.URL || window.webkitURL).createObjectURL(myFile))
+  console.log((window.URL || window.webkitURL).createObjectURL(myFile))
+  // getImgToBase64('https://static.xxe.io/data/upload/20180711/5b45b1337431e.png', function (data) {
+  //
+  // })
+</script>
+</body>
+</html>

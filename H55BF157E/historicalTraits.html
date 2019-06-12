@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<title>关爱定位</title>
+		<!--<script src="http://yqxxkj-file.oss-cn-shanghai.aliyuncs.com/file/%E6%B5%8B%E8%AF%95%E7%9B%AE%E5%BD%95/vConsole.min.js"></script>
+		<script>
+			new VConsole();
+		</script>-->
+		<link rel="stylesheet" type="text/css" href="css/mui.min.css" />
+
+		<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=KdfgiGQgwVRaplDL6XzRyOwzch8bNali"></script>
+		<style type="text/css">
+			body,
+			html,
+			#allmap {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				margin: 0;
+				font-family: "微软雅黑";
+			}
+		</style>
+		<script src="https://cdn.bootcss.com/rxjs/5.4.3/Rx.min.js"></script>
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<link rel="stylesheet" type="text/css" href="css/mui.picker.css" />
+		<script src="js/mui.picker.js" type="text/javascript" charset="utf-8"></script>
+		<link rel="stylesheet" type="text/css" href="css/mui.poppicker.css" />
+		<script src="js/mui.poppicker.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/jquery-3.2.1.min.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<div class="mui-content">
+
+		</div>
+		<div id="allmap"></div>
+		<script src="https://cdn.bootcss.com/es6-promise/4.1.1/es6-promise.min.js"></script>
+		<script type="text/javascript">
+			mui.init() //初始化
+			// 百度地图API功能
+			try {
+				var map = new BMap.Map("allmap", {
+					minZoom: 3,
+					maxZoom: 18
+				});
+			} catch(e) {
+				location.reload();
+			}
+
+			var marker = null,
+				myObservable = new Rx.Subject(),
+				point, longitude, latitude, phone, webView;
+
+			mui.plusReady(function() {
+				var wv = plus.webview.currentWebview();
+				webView = wv;
+				var data = wv.entity.phoneinfos;
+				var picker = new mui.PopPicker({
+					buttons: ['取消', '选择亲属']
+				}); //初始化
+
+				var pickeritme = data.map(function(i) {
+					return {
+						text: i.name,
+						value: i
+					}
+				})
+				picker.setData(pickeritme);
+
+				picker.show(function(selectItems) {
+					//					console.log(JSON.stringify(selectItems))
+					if(selectItems && selectItems[0].value) {
+						var content = selectItems[0].value.content;
+
+						//						console.log(JSON.stringify(selectItems[0].value));
+						plus.nativeUI.showWaiting("加载中....", {
+							width: "50%"
+						});
+						if(content.source && content.source2) {
+							mui.confirm("是否查看老人机定位", "提示", ["不  看", "查  看"], function(A) {
+
+								if(A.index) {
+									/*查看*/
+									console.log(JSON.stringify(A))
+									Bsource(wv, selectItems[0].value.mobile);
+								} else {
+									/*不看*/
+									console.log(JSON.stringify(A))
+									Asource(wv, selectItems[0].value.mobile);
+								}
+							})
+						} else {
+							if(content.source) {
+								Asource(wv, selectItems[0].value.mobile);
+							}
+							if(content.source2) {
+								Bsource(wv, selectItems[0].value.mobile);
+							}
+						}
+
+					} else {
+						mui.alert('该亲人在24小时前没有上传历史定位', '消息', '确定', function() {
+							plus.webview.close(plus.webview.currentWebview().id);
+						})
+					}
+				})
+			});
+
+			function Asource(webview, phones) {
+				/*鹰眼搜索*/
+				console.log("鹰眼" + webview.serviceId + "*-----" + phones)
+				jQuery.ajax({
+					url: 'http://yingyan.baidu.com/api/v3/entity/search',
+					data: {
+						ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+						service_id: webview.serviceId,
+						filter: 'entity_names:' + phones
+					},
+					type: 'get',
+					timeout: 5000,
+					dataType: "jsonp",
+					success: function(da) {
+						if(!da.status) {
+							//								console.log(JSON.stringify(da.entities[0].latest_location))
+							da.entities[0].latest_location['mobile'] = phones;
+							da.entities[0].latest_location['yiyan'] = true;
+							myObservable.next(da.entities[0].latest_location);
+
+						} else {
+							mui.toast('网络错误请稍后再试')
+							clearInterval(timeout2);
+						}
+					},
+					error: function(xhr) {
+						mui.toast('网络错误请稍后再试')
+					}
+				});
+
+				var timeout2 = setInterval(function() {
+					jQuery.ajax({
+						url: 'http://yingyan.baidu.com/api/v3/entity/search',
+						data: {
+							ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+							service_id: webview.serviceId,
+							filter: 'entity_names:' + phones
+						},
+						type: 'get',
+						timeout: 5000,
+						dataType: "jsonp",
+						success: function(da) {
+							if(!da.status) {
+								console.log(JSON.stringify(da))
+								da.entities[0].latest_location['mobile'] = phones;
+								//								da.entities[0].latest_location['yiyan'] = true;
+								myObservable.next(da.entities[0].latest_location);
+
+							} else {
+								mui.toast('网络错误请稍后再试')
+								clearInterval(timeout2);
+							}
+						},
+						error: function(xhr) {
+							mui.toast('网络错误请稍后再试')
+						}
+					});
+
+				}, 6000)
+			}
+
+			function Bsource(webview, phone) {
+				/*老人机*/
+
+				var objData = webview.objData;
+				console.log("老人机" + webview.objData.userToken + "*-----" + phone)
+				jQuery.ajax({
+					url: objData.rootServe + '/app/location/customerLocation.do',
+					data: {
+						"mobile": phone,
+						"source": "phone",
+						"userToken": objData.userToken
+					},
+					type: 'get',
+					timeout: 5000,
+					dataType: "jsonp",
+					success: function(data) {
+						//						console.log(JSON.stringify(data))
+						if(Object.prototype.toString.call(data) !== "[object Object]") {
+							data = JSON.parse(data)
+						}
+						if(data.resultCode == 0) {
+							console.log(JSON.stringify(data.resultBody))
+							data.resultBody.position["loc_time"] = data.resultBody.position.update_time / 1000
+							data.resultBody.position["longitude"] = data.resultBody.position.longtitude
+
+							data.resultBody.position['mobile'] = phone;
+							myObservable.next(data.resultBody.position)
+
+						}
+					},
+					error: function(xhr) {
+
+					}
+				});
+
+				var timeout = setInterval(function() {
+					jQuery.ajax({
+						url: objData.rootServe + '/app/location/customerLocation.do',
+						data: {
+							"mobile": phone,
+							"source": "phone",
+							"userToken": objData.userToken
+						},
+						type: 'get',
+						timeout: 5000,
+						dataType: "jsonp",
+						success: function(data) {
+							//						console.log(JSON.stringify(data))
+							if(Object.prototype.toString.call(data) !== "[object Object]") {
+								data = JSON.parse(data)
+							}
+							if(data.resultCode == 0) {
+								data.resultBody.position["loc_time"] = data.resultBody.position.update_time / 1000
+								data.resultBody.position["longitude"] = data.resultBody.position.longtitude
+								//console.log(JSON.stringify(data.resultBody.position))
+								data.resultBody.position['mobile'] = phone;
+								myObservable.next(data.resultBody.position)
+
+							}
+						},
+						error: function(xhr) {
+
+						}
+					});
+				}, 6000)
+
+			}
+
+			var initialize = true;
+			myObservable.subscribe(function(value) {
+				console.log(JSON.stringify(value))
+				if(latitude != value.latitude && longitude != value.longitude) {
+					/*初始化开始*/
+					if(initialize) {
+						initialize = false;
+						plus.nativeUI.closeWaiting();
+						point = new BMap.Point(value.longitude, value.latitude)
+						map.centerAndZoom(point, 15)
+						map.setZoom(18)
+						marker = new BMap.Marker(point)
+						map.addOverlay(marker); // 将标注添加到地图中
+						addONe(value.loc_time, marker)
+						if(value.yiyan) {
+							addbutton(value.mobile); //添加按钮
+							radiusList(value.mobile, function(asd) {
+								if(asd) {
+									if(asd.size) {
+										console.log(JSON.stringify(asd))
+										var asdPoint = new BMap.Point(asd.fences[0].longitude, asd.fences[0].latitude);
+										var asdRadius = new BMap.Circle(asdPoint, asd.fences[0].radius, {
+											strokeColor: "red",
+											strokeWeight: 3,
+											strokeStyle: "solid",
+											enableClicking: false
+										})
+										map.addOverlay(asdRadius);
+										querystatus(asd.fences[0].fence_id, value.mobile)
+									} else {
+										console.log("没有电子围栏")
+									}
+								} else {
+									console.log("接口错误")
+								}
+							})
+						}
+						longitude = value.longitude;
+						latitude = value.latitude;
+						return false;
+						/*初始化结束*/
+					}
+
+					var arraya = map.getOverlays()
+					arraya.forEach(function(item, inde) {
+						//xa是半径
+						if(item.point && !item.xa) {
+							map.removeOverlay(item)
+						}
+					})
+					var points = new BMap.Point(value.longitude, value.latitude)
+
+					var markers = new BMap.Marker(points)
+
+					map.addOverlay(markers); // 将标注添加到地图中
+
+					addONe(value.loc_time, markers)
+					//添加时间标注
+					addLine({
+						lng: longitude,
+						lat: latitude
+					}, {
+						lng: value.longitude,
+						lat: value.latitude
+					});
+					longitude = value.longitude;
+					latitude = value.latitude;
+					//画线
+				}
+
+			});
+
+			function addbutton(phones) {
+				// 定义一个控件类,即function
+				function ZoomControl() {
+					// 默认停靠位置和偏移量
+					this.defaultAnchor = BMAP_ANCHOR_BOTTOM_RIGHT;
+					this.defaultOffset = new BMap.Size(10, 10);
+				}
+
+				// 通过JavaScript的prototype属性继承于BMap.Control
+				ZoomControl.prototype = new BMap.Control();
+
+				// 自定义控件必须实现自己的initialize方法,并且将控件的DOM元素返回
+				// 在本方法中创建个div元素作为控件的容器,并将其添加到地图容器中
+				ZoomControl.prototype.initialize = function(map) {
+					// 创建一个DOM元素
+					var div = document.createElement("button");
+					div.type = "button";
+					div.className = "mui-btn mui-btn-danger";
+					div.innerText = "设置围栏";
+					div.onclick = function(e) {
+						var wv = plus.webview.currentWebview();
+						var objData = wv.objData;
+						console.log(JSON.stringify(objData));
+						console.log(JSON.stringify(longitude))
+						console.log(JSON.stringify(latitude))
+						console.log(JSON.stringify(phones))
+						if(!phones) {
+							return false;
+						}
+						mui.openWindowWithTitle({
+							url: 'setFencing.html',
+							extras: {
+								entity: {
+									"longitude": longitude,
+									"latitude": latitude
+								},
+								objData: objData,
+								phone: phones
+							}
+						}, {
+							title: { //标题配置
+								text: "设置围栏", //标题文字
+							},
+							back: { //左上角返回箭头
+								image: {
+									base64Data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAb1BMVEUAAAAAev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8Aev8AAACubimgAAAAI3RSTlMAGfUTGfQTGPMSGPIYGhgaGBsXGxcbFxwXHBccFhwWHRYdHWufDPQAAAABYktHRACIBR1IAAAAB3RJTUUH4QETEBwooeTlkQAAAJVJREFUSMft1EkSgkAQRNFGUXFWHBDBibr/HTUwD5B/48Ig1y+io7u6MqUhf5hsNEY+j5hMgZ/FJ8Xc9ovos3T96utjbfqN/Nb0O/m96Uv5g+mP8ifTn+Ur01/ka9Nf5RvTt/I309/lH6Z/yr9Mn+Q71/MT8B34K/E58Enzv8R/K98HvnF8p3lr8F7izce7lbf3kJ/lDQp9HdBhgg3PAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDE3LTAxLTE5VDE2OjI4OjQwKzA4OjAwpTDFwQAAACV0RVh0ZGF0ZTptb2RpZnkAMjAxNy0wMS0xOVQxNjoyODo0MCswODowMNRtfX0AAAAASUVORK5CYII='
+								}
+							}
+						})
+					}
+					// 添加DOM元素到地图中
+					map.getContainer().appendChild(div);
+					// 将DOM元素返回
+					return div;
+				}
+				var myZoomCtrl = new ZoomControl();
+				// 添加到地图当中
+				map.addControl(myZoomCtrl);
+			}
+
+			function radiusList(phones, cbk) {
+				jQuery.ajax({
+					url: "http://yingyan.baidu.com/api/v3/fence/list",
+					type: "get",
+					data: {
+						ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+						service_id: webView.objData.serviceId,
+						monitored_person: phones,
+						fence_name: phones,
+						coord_type_output: "bd09ll"
+					},
+					dataType: 'jsonp',
+					success: function(da) {
+						console.log(JSON.stringify(da))
+						if(da.status == 0) {
+							cbk(da)
+						}
+
+					},
+					error: function(request) {
+						cbk(false)
+					},
+					timeout: 5000
+				});
+			}
+
+			function querystatus(ind, phone) {
+				//console.log(ind)
+				jQuery.ajax({
+					url: "http://yingyan.baidu.com/api/v3/fence/querystatus",
+					type: "get",
+					data: {
+						ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+						service_id: webView.objData.serviceId,
+						monitored_person: phone,
+						fence_ids: ind,
+					},
+					dataType: 'jsonp',
+					success: function(da) {
+						console.log(JSON.stringify(da))
+						if(da.size) {
+							switch(da.monitored_statuses[0].monitored_status) {
+								case "unknown":
+									mui.alert("目标近期没有上传坐标,由于相隔时间长当前处于未知状态,请致电询问", "电子围栏提示!")
+									break;
+								case "in":
+									mui.toast("目标在安全围栏范围内")
+									break;
+								case "out":
+									//									mui.toast("目标已经超出围栏外")
+									break;
+							}
+						}
+					},
+					error: function(request) {
+
+					},
+					timeout: 5000
+				});
+			}
+
+			function addONe(time, mark) {
+				var datime = dateFormat(new Date(time * 1000))
+
+				var label1 = new BMap.Label("定位" + datime, {
+					offset: new BMap.Size(20, -10)
+				});
+				mark.setLabel(label1);
+			}
+
+			function addLine(one, two) {
+				var polyline = new BMap.Polyline([
+					new BMap.Point(one.lng, one.lat),
+					new BMap.Point(two.lng, two.lat),
+				], {
+					strokeColor: "red",
+					strokeWeight: 1.5,
+					strokeOpacity: 0.7
+				}); //创建折线
+				map.addOverlay(polyline); //增加折线
+			}
+
+			function upGps(lng, lat) {
+				if(lng && lat) {
+					lng = parseInt(lng * 1000000) / 1000000
+					lat = parseInt(lat * 1000000) / 1000000
+					return {
+						lng: lng,
+						lat: lat
+					}
+				}
+				if(lng) {
+					lng = parseInt(lng * 1000000) / 1000000
+					return lng
+				}
+				if(lat) {
+					lat = parseInt(lat * 1000000) / 1000000
+					return lat
+				}
+			}
+
+			function amendTime(time) {
+				time = time.split(/[- : \/]/);
+
+				time = new Date(time[0], time[1] - 1, time[2], time[3], time[4]).getTime()
+				console.log(time)
+				return time
+			}
+
+			function dateFormat(date) {
+				console.log(date)
+				var n = date.getFullYear();
+				var y = date.getMonth() + 1;
+				var r = date.getDate();
+				var s = date.getHours();
+				var f = date.getMinutes();
+				return "日期" + n + "-" + y + "-" + r + "时间" + s + ":" + f + ":00"
+			}
+		</script>
+	</body>
+
+</html>

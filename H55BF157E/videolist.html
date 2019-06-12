@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<title>Document</title>
+		<!--<script src="http://yqxxkj-file.oss-cn-shanghai.aliyuncs.com/file/%E6%B5%8B%E8%AF%95%E7%9B%AE%E5%BD%95/vConsole.min.js"></script>
+		<script>
+			new VConsole();
+		</script>-->
+
+		<link rel="stylesheet" type="text/css" href="css/mui.min.css" />
+		<style type="text/css">
+			.imgssdiv {
+				width: 100%;
+				text-align: center;
+				margin-top: 1rem;
+			}
+			
+			.imgss {
+				width: 30%;
+				/*margin: 0 auto;*/
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="mui-content">
+
+		</div>
+		<script src="js/jquery-3.2.1.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			//			userToken: global.user.getToken(),
+			//          rootServe: config.rootServe,
+			//          serviceId: global.user.getServiceId(),
+			//          mobile: global.user.getUserMobileNumber()
+			mui.init();
+			mui.plusReady(function() {
+				var webActivity = plus.webview.currentWebview();
+				var bodydata = toString.call(webActivity.entity) !== "[object Object]" ? JSON.parse(webActivity.entity) : webActivity.entity;
+				var objData = webActivity.objData;
+				//      webActivity.serviceId
+				addList(bodydata, objData)
+			})
+
+			function addList(arrays, objData) {
+				console.log(JSON.stringify(arrays))
+				if(arrays.data.length == 0) {
+					jQuery(".mui-content").append("<div class='imgssdiv'><img class='imgss' src='./img/mysj.png'><p style='text-align: center;font-size: 2em;'>没有绑定设备</p></div>")
+					return
+				}
+				arrays.data.forEach(function(item, index, thjs) {
+					jQuery(".mui-content").append(
+						"<div class='mui-card'> " +
+						"<div class='mui-card-header'>" + item.deviceName + "</div> " +
+						"<div class='mui-card-content'>" +
+						"<img src='" + item.picUrl + "' alt='' data-index='" + index + "' width='100%'></div>" +
+						"<div class='mui-card-footer'>" +
+						"<a class='mui-card-link lshf'  data-index='" + index + "'>历史回放</a>" +
+						"<a class='mui-card-link ssbf'  data-index='" + index + "'>实时播放</a>" +
+						"</div></div>"
+					);
+				})
+				mui('.mui-card-footer').on('tap', 'a.lshf', function(e) {
+					//回放
+					var index = this.getAttribute("data-index")
+					var murl = SplitJointUrl(arrays, objData, 0, index);
+					lshf(arrays.accessToken, murl)
+				})
+				mui('.mui-card-footer').on('tap', 'a.ssbf', function(e) {
+					//直播
+					var index = this.getAttribute("data-index")
+					var murl = SplitJointUrl(arrays, objData, 1, index);
+					ssbf(arrays.accessToken, murl)
+				})
+				mui('.mui-card').on('tap', '.mui-card-content img', function(e) {
+					//直播
+					var index = this.getAttribute("data-index")
+					var murl = SplitJointUrl(arrays, objData, 1, index);
+					ssbf(arrays.accessToken, murl)
+				})
+			}
+
+			function SplitJointUrl(arrays, objData, nub, thisIndex) {
+				if(nub) {
+					return "ezopen://open.ys7.com/" + arrays.data[thisIndex].deviceSerial + "/1.hd.live?mute=true"
+				}
+				return "ezopen://open.ys7.com/" + arrays.data[thisIndex].deviceSerial + "/1.hd.rec?mute=true"
+			}
+
+			function lshf(accessToken, mUrl) {
+				var mainActivity = plus.android.runtimeMainActivity();
+				var PlayActivity = plus.android.importClass('com.ezuikit.open.PlayActivity');
+				PlayActivity.startPlayActivity(mainActivity, '13e796b6d7d94b9db6118c2cb5309cb4', accessToken, mUrl);
+			} 
+
+			function ssbf(accessToken, mUrl) {
+				var mainActivity = plus.android.runtimeMainActivity();
+				var PlayActivity = plus.android.importClass('com.ezuikit.open.PlayActivity');
+				PlayActivity.startPlayActivity(mainActivity, '13e796b6d7d94b9db6118c2cb5309cb4', accessToken, mUrl);
+			}
+		</script>
+	</body>
+
+</html>

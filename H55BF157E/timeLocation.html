@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+<title>历史轨迹</title>
+		<!--<script src="http://yqxxkj-file.oss-cn-shanghai.aliyuncs.com/file/%E6%B5%8B%E8%AF%95%E7%9B%AE%E5%BD%95/vConsole.min.js"></script>
+		<script>
+			new VConsole();
+		</script>-->
+
+		<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=KdfgiGQgwVRaplDL6XzRyOwzch8bNali"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/mui.min.css" />
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/mui.picker.css" />
+		<script src="js/mui.picker.js" type="text/javascript" charset="utf-8"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/mui.poppicker.css" />
+		<script src="js/mui.poppicker.js" type="text/javascript" charset="utf-8"></script>
+
+		<link rel="stylesheet" type="text/css" href="css/mui.dtpicker.css" />
+		<script src="js/mui.dtpicker.js" type="text/javascript" charset="utf-8"></script>
+
+		<style type="text/css">
+			body,
+			html,
+			#allmap {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				margin: 0;
+				font-family: "微软雅黑";
+			}
+			
+			#timeSelection {
+				width: 100%;
+			}
+			
+			.mui-progressbar {
+				height: 10px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="mui-content">
+
+		</div>
+		<div id="allmap"></div>
+	</body>
+	<script type="text/javascript">
+		mui.init()
+		// 百度地图API功能
+		try {
+			var map = new BMap.Map("allmap"),
+				marker = null,
+				phone;
+		} catch(e) {
+			location.reload();
+		}
+
+		var picker = new mui.PopPicker({
+			buttons: ['取消', '选择亲属']
+		}); //初始化  
+		mui.plusReady(function() {
+			var wv = plus.webview.currentWebview();
+			var datasa = wv.entity.customerlist;
+			//			var wv = plus.webview.currentWebview();
+			//			var data = [{
+			//				name: '李华',
+			//				phone: 18649876420
+			//			}, {
+			//				name: '李华2',
+			//				phone: 18649876420
+			//			}]	
+			picker.setData(datasa.map(function(i, index) {
+				console.log(JSON.stringify(i))
+				return {
+					text: i.name,
+					value: i
+				}
+			}));
+
+			picker.show(function(selectItems) {
+
+				if(selectItems && selectItems.length) {
+
+					phone = selectItems[0].value.location_phone;
+					//phone = 15159631662
+
+					BMapQuery(phone, function(cbk) {
+
+						if(cbk) {
+							var timm = new Date()
+							var sttimm = new Date(timm.getTime() - (6 * 24 * 60 * 60 * 1000))
+							var entimm = new Date(timm.getTime() - (1 * 60 * 60 * 1000))
+
+							var dtPicker = new mui.DtPicker({
+								type: 'datetime',
+								beginDate: new Date(sttimm.getFullYear(), sttimm.getMonth(), sttimm.getDate(), sttimm.getHours(), sttimm.getMinutes()),
+								endDate: new Date(entimm.getFullYear(), entimm.getMonth(), entimm.getDate(), entimm.getHours(), entimm.getMinutes()),
+								buttons: ['退出历史轨迹', '确定']
+							}); //初始化时间选择器
+
+							mui.toast('开始日期选择')
+							map.centerAndZoom(new BMap.Point(cbk.longitude, cbk.latitude), 15); //百度地图
+
+							dtPicker.show(function(sem) {
+								//								mui.alert(JSON.stringify(sem))
+
+								sem.value = sem.value.split(/[- : \/]/); //IOS兼容处理
+								console.log('开始时间' + sem.value)
+								var startimeDa = new Date(sem.value[0], sem.value[1] - 1, sem.value[2], sem.value[3], sem.value[4]).getTime()
+								var starttime = Math.round(new Date(startimeDa / 1000));
+								console.log('开始时间' + starttime)
+								mui.toast('结束日期选择')
+								var housasd = startimeDa + 23 * 60 * 60 * 1000
+								console.log(housasd)
+								if(housasd > entimm.getTime()) {
+									var ti = housasd - entimm.getTime()
+									housasd -= ti
+								}
+								var enddtPicker = new mui.DtPicker({
+									type: 'datetime',
+									beginDate: new Date(startimeDa),
+									endDate: new Date(housasd),
+									buttons: ['退出历史轨迹', '确定']
+								}); //再次初始化
+
+								enddtPicker.show(function(ensem) {
+									//									mui.alert("结束" + JSON.stringify(ensem))
+									ensem.value = ensem.value.split(/[- : \/]/); //IOS兼容处理
+									console.log('结束时间' + ensem.value)
+
+									var endstime = Math.round(new Date(ensem.value[0], ensem.value[1] - 1, ensem.value[2], ensem.value[3], ensem.value[4]).getTime() / 1000)
+
+									console.log('结束时间' + endstime)
+									//										mui.alert("phone" + phone)
+									if(phone && starttime && endstime) {
+										plus.nativeUI.showWaiting("加载中....", {
+											width: "50%"
+										});
+										arrayPs(starttime, endstime).then(function(pointarray) {
+											var origin = 0,
+												all = 0,
+												terminus = 0;
+											pointarray.push(null);
+											pointarray.forEach(function(item, index) {
+												if(item === null) {
+													if(origin) {
+														// 如果有一个起点的话就画一个终点
+														var endpoint = pointarray[index - 1].end_point
+														var marker2 = new BMap.Marker(new BMap.Point(endpoint.longitude, endpoint.latitude)); // 创建标注
+														map.addOverlay(marker2); // 将标注添加到地图中
+														var label2 = new BMap.Label("终点" + dateFormat(new Date(endpoint.loc_time * 1000)), {
+															offset: new BMap.Size(20, -10)
+														});
+														marker2.setLabel(label2);
+														console.log("终点")
+														all++
+														origin = 0
+														terminus = 0
+													}
+												} else {
+													// 画起点
+													if(terminus == 0) {
+														var points = item.points
+														var startpoint = item.start_point
+														points = points.map(function(is, index) {
+															return new BMap.Point(is.longitude, is.latitude)
+														})
+														var polyline = new BMap.Polyline(points, {
+															strokeColor: "red",
+															strokeWeight: 3,
+															strokeOpacity: 1
+														}); //创建折线
+														map.addOverlay(polyline); //增加折线
+
+														var marker1 = new BMap.Marker(new BMap.Point(startpoint.longitude, startpoint.latitude)); // 创建标注
+														map.addOverlay(marker1); // 将标注添加到地图中
+														var label1 = new BMap.Label("起点" + dateFormat(new Date(startpoint.loc_time * 1000)), {
+															offset: new BMap.Size(20, -10)
+														});
+														marker1.setLabel(label1);
+
+														console.log("起点")
+														origin++
+														terminus++
+													} else {
+														var points = item.points
+														var startpoint = item.start_point
+														points = points.map(function(is, index) {
+															return new BMap.Point(is.longitude, is.latitude)
+														})
+														var polyline = new BMap.Polyline(points, {
+															strokeColor: "red",
+															strokeWeight: 3,
+															strokeOpacity: 1
+														}); //创建折线
+														map.addOverlay(polyline); //增加折线
+														console.log("中间线")
+													}
+												}
+
+											})
+											if(all == 0) {
+												mui.alert("亲属没有历史轨迹数据", '提示', '返回', function() {
+													plus.webview.close(plus.webview.currentWebview().id);
+												})
+												console.log("没有数据")
+											} else {
+
+											}
+											plus.nativeUI.closeWaiting();
+										})
+
+									} else {
+										mui.alert(phone + "开始" + starttime + "结束" + endstime + '时间选择错误', '提示', '返回', function() {
+											plus.webview.close(plus.webview.currentWebview().id);
+										})
+									}
+								})
+
+							})
+						} else {
+							mui.alert('该亲属没有定位历史', '提示', '返回', function() {
+								plus.webview.close(plus.webview.currentWebview().id);
+							})
+						}
+					})
+				}
+			})
+
+		})
+
+		function BMapQuery(pho, cbk) {
+			var wv = plus.webview.currentWebview();
+			mui.get('http://yingyan.baidu.com/api/v3/entity/search', {
+				ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+				service_id: wv.serviceId,
+				filter: 'entity_names:' + pho
+			}, function(data) {
+				if(!data.status) {
+					if(data.entities.length == 1) {
+						console.log(JSON.stringify(data.entities[0]))
+
+						cbk(data.entities[0].latest_location)
+					}
+				} else {
+					cbk(false)
+				}
+			}, 'json')
+		}
+
+		function dateFormat(date) {
+			var n = date.getFullYear();
+			var y = date.getMonth() + 1;
+			var r = date.getDate();
+			var s = date.getHours();
+			var f = date.getMinutes();
+			return "日期" + n + "-" + y + "-" + r + "时间" + s + ":" + f + ":00"
+		}
+
+		function arrayPs(sta, end) {
+			return Promise.all(getItemg(sta, end)).then(function(e) {
+				console.log("返回" + JSON.stringify(e))
+				return e
+			})
+
+		}
+
+		function getItemg(sta, end) {
+			var wv = plus.webview.currentWebview();
+			var nub = parseInt((end - sta) / 3600)
+			var maps = [];
+			if(nub > 2) {
+				for(var i = 0; i < (nub - 1); i++) {
+					maps.push(i)
+				}
+				//				maps = new Array(nub - 1);
+				//				maps.fill(nub);
+
+				maps = maps.map(function(e, index) {
+					var star1 = sta;
+					sta += 3600
+					return new Promise(function(es, rs) {
+						mui.ajax('http://yingyan.baidu.com/api/v3/track/gettrack', {
+							data: {
+								ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+								service_id: wv.serviceId,
+								entity_name: phone,
+								start_time: star1,
+								end_time: sta,
+								is_processed: 1
+							},
+							dataType: 'json', //服务器返回json格式数据
+							type: 'get', //HTTP请求类型
+							timeout: 5000, //超时时间设置为10秒；
+							success: function(data) {
+								//								console.log(JSON.stringify(data))
+								if(!data.status && data.size) {
+									es(data)
+								} else {
+									es(null)
+								}
+							},
+							error: function(xhr, type, errorThrown) {
+								es(null)
+								//								console.log(JSON.stringify(xhr));
+								//								console.log(JSON.stringify(type));
+								//								console.log(JSON.stringify(errorThrown));
+							}
+						});
+					})
+				})
+			}
+
+			maps.push(new Promise(function(es, rs) {
+				mui.ajax('http://yingyan.baidu.com/api/v3/track/gettrack', {
+					data: {
+						ak: 'KdfgiGQgwVRaplDL6XzRyOwzch8bNali',
+						service_id: wv.serviceId,
+						entity_name: phone,
+						start_time: sta,
+						end_time: end,
+						is_processed: 1
+					},
+					dataType: 'json', //服务器返回json格式数据
+					type: 'get', //HTTP请求类型
+					timeout: 5000, //超时时间设置为10秒；
+					success: function(data) {
+						//						console.log(JSON.stringify(data))
+						if(!data.status && data.size) {
+							es(data)
+						} else {
+							es(null)
+						}
+					},
+					error: function(xhr, type, errorThrown) {
+						es(null)
+						//						console.log(JSON.stringify(xhr));
+						//						console.log(JSON.stringify(type));
+						//						console.log(JSON.stringify(errorThrown));
+					}
+				});
+			}))
+
+			return maps
+		}
+	</script>
+
+</html>
