@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue  计算属性 依赖获得原理</title>
+</head>
+<body>
+<script>
+    let dep = {}
+
+    function f(fun, objs) {
+        // const yilai = []
+        const obj = new Proxy(objs, {
+            get(target, p, receiver) {
+                if (target[p]) {
+                    if (!dep[p]) dep[p] = new Set()
+                    dep[p].add(fun.bind(obj))
+                }
+                return target[p]
+            }
+        })
+        return fun.bind(obj)
+    }
+
+    const computed = {
+        f1() {
+            return this.abcc + '***'
+        },
+        f2() {
+            console.log(this.abc + this.qwe)
+            return this.abc + this.qwe + '-----------' + this.f1()
+        }
+    }
+
+    let vue
+    const data = new Proxy({
+        abc: 100,
+        abcc: 100,
+        qwe: 200
+    }, {
+        set(target, p, value, receiver) {
+            target[p] = value
+            if (dep[p]) [...dep[p]].forEach(v => v())
+        }
+    })
+    data.f1 = f(computed.f1, data)
+    data.f2 = f(computed.f2, data)
+    data.abc++ //
+</script>
+</body>
+</html>
